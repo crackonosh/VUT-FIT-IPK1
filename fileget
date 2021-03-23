@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+
+###### IMPORTS
+import socket
+import argparse
+from urllib.parse import urlparse
+import re
+import ipaddress
+################################################################################
+
+
+###### CONSTANTS
+CONST_LOGIN = 'xhaisl00'
+################################################################################
+
+
+###### FUNCTION DEFINITIONS
+def constructWHEREIS(domain):
+  return "WHEREIS " + str(domain)
+
+def constructGET(path, hostname):
+  request = "GET "+path+" FSP/1.0\r\n"
+  request += "Hostname: "+hostname+"\r\n"
+  request += "Agent: "+CONST_LOGIN+"\r\n"
+  return request
+################################################################################
+
+
+###### READ ARGUMENTS FROM STDIN
+argParser = argparse.ArgumentParser()
+
+argParser.add_argument(
+    "-n", required=True, nargs=1, help="IP address of server"
+  )
+argParser.add_argument(
+    "-f", required=True, nargs=1, help="Address to download from"
+  )
+args = vars(argParser.parse_args())
+
+#print("Arg1: "+str(args["n"][0]))
+#print("Arg2: "+str(args["f"][0]))
+#print("")
+################################################################################
+
+
+###### RESOLVE IP IN FIRST ARGUMENT
+fstIP = ""
+try:
+  fstIP = ipaddress.ip_address(str(args['n'][0]))
+except ValueError:
+  print("Invalid IP address given, exiting...")
+  exit(1)
+
+#print(fstIP)
+#print("")
+################################################################################
+
+
+###### RESOLVE FSP SERVER ADDRESS
+serverURL = re.match(
+    r'(?P<scheme>fsp://)(?P<hostname>[\w_.-]*.[a-zA-Z]+)(?P<path>/[\w_/-]+[.\w]*)',
+    str(args["f"][0])
+  )
+if not(serverURL):
+  print("Invalid server url, exiting...")
+  exit(1)
+
+#print(serverURL.group('scheme'))
+#print(serverURL.group('hostname'))
+#print(serverURL.group('path'))
+#print("")
+################################################################################
+
+
+###### RESOLVE IP IN DNS
+print(constructWHEREIS(serverURL.group('hostname')))
+print("")
+################################################################################
+
+###### RESOLVE IP IN DINS
+print(constructGET(serverURL.group('path'), serverURL.group('hostname')))
+print("")
+################################################################################
