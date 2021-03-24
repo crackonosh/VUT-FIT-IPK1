@@ -7,6 +7,8 @@ import ipaddress
 ################################################################################
 
 
+###### GLOBALS
+index = False
 ###### CONSTANTS
 CONST_LOGIN = 'xhaisl00'
 ################################################################################
@@ -23,13 +25,28 @@ def constructGET(path, hostname):
   return request
 
 def getFile(tcpSoc, path, hostname, fileName):
+  tcpSoc.connect((resolvedIP, resolvedPort))
   tcpSoc.send(bytes(constructGET(path, hostname), 'utf-8'))
   recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
+  # check that fetch was successful
+  if str(recMsg.split("\r\n")[0].split(" ")[1]).strip() != "Success":
+    print("Error occured when fetching file")
+    print(recMsg.split("\n")[0])
+    print("Exiting...")
+    exit(1)
+
+  print(recMsg.split("\r\n")[0])
+  print(recMsg.split("\r\n")[3:])
 
   # write to file
   file = open(fileName, "wb")
-  while recMsg := tcpSoc.recv(32):
-    file.write(recMsg)
+  if index:
+    for fileName in recMsg.split("\r\n")[3:]:
+      if fileName != '':
+        file.write(bytes(fileName+"\n", 'utf-8'))
+  else:
+    while recMsg := tcpSoc.recv(32):
+      file.write(recMsg)
   file.close()
   print("[FILE DOWNLOAD] "+fileName)
   return
@@ -98,13 +115,13 @@ try:
   recMsg = udpSoc.recv(2048)
 except:
   print("Connection timed out when resolving hostname to IP, exiting...")
-  exit(2)
+  exit(1)
 # check that response is OK
 if bytes.decode(recMsg[:2], "utf-8") != 'OK':
   print("Error occured when trying to resolve IP from hostname.")
   print(recMsg)
   print("Exiting...")
-  exit(3)
+  exit(1)
 
 recMsg = bytes.decode(recMsg).split()[1]
 portPos = recMsg.find(':')
@@ -119,18 +136,19 @@ recMsg = None
 tcpSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
   # if index all files already part of header
-  tcpSoc.connect((resolvedIP, resolvedPort))
 
   # resolve file name
   fileName = None
   if "/" in path:
-    fileName = path.split("/")[-1]
+    fileName = path.split("/")[-1].strip()
   else:
     fileName = path
+    index = True
 
+  print("test")
   recMsg = getFile(tcpSoc, path, hostname, fileName)
-except Exception:
+except Exception as e:
   print("Error when fetching data from server, exiting...")
-  print(Exception)
-  exit(2)
+  print(e)
+  exit(1)
 ################################################################################
