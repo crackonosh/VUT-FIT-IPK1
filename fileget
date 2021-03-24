@@ -21,7 +21,7 @@ def constructWHEREIS(hostname):
 def constructGET(path, hostname):
   request = "GET "+path+" FSP/1.0\r\n"
   request += "Hostname: "+hostname+"\r\n"
-  request += "Agent: "+CONST_LOGIN+"\r\n"
+  request += "Agent: "+CONST_LOGIN+"\r\n\r\n"
   return request
 ################################################################################
 
@@ -54,26 +54,25 @@ except ValueError:
 
 
 ###### RESOLVE FSP SERVER ADDRESS
-serverURL = re.match(
-    r'(?P<scheme>fsp://)(?P<hostname>[\w_.-]*.[a-zA-Z]+)(?P<path>/[\w_/-]+[.\w]*)',
-    str(args["f"][0])
-  )
-if not(serverURL):
-  print("Invalid server url, exiting...")
+if args['f'][0][0:6].lower() != "fsp://":
+  print("Invalid server protocol, use 'fsp://', exiting...")
   exit(1)
-#print(serverURL.group('scheme'))
-#print(serverURL.group('hostname'))
-#print(serverURL.group('path'))
-#print("")
+
+firstSlashPos = args['f'][0][6:].find('/')
+hostname = args['f'][0][6:firstSlashPos+6]
+path = args['f'][0][7+firstSlashPos:]
+
+if path == "":
+  print("Invalid path to file, exiting...")
+  exit(1)
 ################################################################################
 
 
 ###### RESOLVE IP IN DNS
-print(constructWHEREIS(serverURL.group('hostname')))
+print(constructWHEREIS(hostname))
 print("")
 ################################################################################
 
 ###### RESOLVE IP IN DINS
-print(constructGET(serverURL.group('path'), serverURL.group('hostname')))
-print("")
+print(constructGET("kek", hostname))
 ################################################################################
