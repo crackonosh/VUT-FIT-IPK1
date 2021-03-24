@@ -62,7 +62,7 @@ firstSlashPos = args['f'][0][6:].find('/')
 hostname = args['f'][0][6:firstSlashPos+6]
 path = args['f'][0][7+firstSlashPos:]
 
-if path == "":
+if (path == "" or firstSlashPos == -1):
   print("Invalid path to file, exiting...")
   exit(1)
 ################################################################################
