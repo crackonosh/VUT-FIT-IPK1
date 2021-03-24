@@ -76,16 +76,16 @@ if (path == "" or firstSlashPos == -1):
 ###### RESOLVE HOSTNAME TO IP
 recMsg = None
 # creates socket connection
-clientSoc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-clientSoc.settimeout(5)
-# try get response from server, timeout after 10s
+udpSoc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udpSoc.settimeout(5)
+# try get response from server, timeout after 5s
 try:
-  clientSoc.sendto(
+  udpSoc.sendto(
     bytes(constructWHEREIS(hostname), 'utf-8'), (str(serverIP), serverPort)
   )
-  recMsg = clientSoc.recv(2048)
+  recMsg = udpSoc.recv(2048)
 except:
-  print("Connection timed out, exiting...")
+  print("Connection timed out when resolving hostname to IP, exiting...")
   exit(2)
 # check that response is OK
 if bytes.decode(recMsg[:2], "utf-8") != 'OK':
@@ -98,27 +98,27 @@ recMsg = bytes.decode(recMsg).split()[1]
 portPos = recMsg.find(':')
 resolvedIP = recMsg[0:portPos]
 resolvedPort = int(recMsg[portPos+1:])
-print(resolvedIP)
-print(resolvedPort)
-print()
 ################################################################################
 
-###### RESOLVE IP IN DINS
-print(constructGET(path, hostname))
+
+###### GET RESPONSE
 recMsg = None
 # creates socket connection
-clientSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-clientSoc.settimeout(5)
+tcpSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
-  clientSoc.sendto(
-    bytes(constructGET(path, hostname), 'utf-8'), (resolvedIP, resolvedPort)
-  )
-  recMsg = clientSoc.recv(2048)
-except:
-  print("Connection timed out, exiting...")
-  exit(2)
+  # if index all files already part of header
+  tcpSoc.connect((resolvedIP, resolvedPort))
+  tcpSoc.send(bytes(constructGET(path, hostname), 'utf-8'))
+  recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
+  responseLen = int(recMsg.split("\n")[1].split(":")[1])
+  print("length: " + str(responseLen))
+  recMsg = tcpSoc.recv(responseLen)
+  print("second: " + str(recMsg))
 
-print()
-print(path)
-print(downloadAll)
+
+
+except Exception:
+  print("Error when fetching data from server, exiting...")
+  print(Exception)
+  exit(2)
 ################################################################################
