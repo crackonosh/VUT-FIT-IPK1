@@ -21,17 +21,6 @@ def constructGET(path, hostname):
   request += "Hostname: "+hostname+"\r\n"
   request += "Agent: "+CONST_LOGIN+"\r\n\r\n"
   return request
-
-def getHostname(request, serverIP, serverPort):
-  clientSoc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-  clientSoc.settimeout(10)
-  clientSoc.sendto(bytes(request, 'utf-8'), (serverIP, serverPort))
-  try:
-    recMsg = clientSoc.recv(2048)
-    return recMsg
-  except:
-    print("Unable to connect to server, exiting...")
-    exit(2)
 ################################################################################
 
 
@@ -75,6 +64,9 @@ firstSlashPos = args['f'][0][6:].find('/')
 hostname = args['f'][0][6:firstSlashPos+6]
 path = args['f'][0][7+firstSlashPos:]
 
+downloadAll = False
+if path[-1] == '*':
+  downloadAll = True
 if (path == "" or firstSlashPos == -1):
   print("Invalid path to file, exiting...")
   exit(1)
@@ -82,19 +74,51 @@ if (path == "" or firstSlashPos == -1):
 
 
 ###### RESOLVE HOSTNAME TO IP
-msgArr = bytes.decode(
-  getHostname(constructWHEREIS(hostname), str(serverIP), serverPort)
-)
-if msgArr[:2] != 'OK':
+recMsg = None
+# creates socket connection
+clientSoc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+clientSoc.settimeout(5)
+# try get response from server, timeout after 10s
+try:
+  clientSoc.sendto(
+    bytes(constructWHEREIS(hostname), 'utf-8'), (str(serverIP), serverPort)
+  )
+  recMsg = clientSoc.recv(2048)
+except:
+  print("Connection timed out, exiting...")
+  exit(2)
+# check that response is OK
+if bytes.decode(recMsg[:2], "utf-8") != 'OK':
   print("Error occured when trying to resolve IP from hostname.")
-  print(msgArr)
+  print(recMsg)
   print("Exiting...")
   exit(3)
-resolvedIP = msgArr.split()[1]
+
+recMsg = bytes.decode(recMsg).split()[1]
+portPos = recMsg.find(':')
+resolvedIP = recMsg[0:portPos]
+resolvedPort = int(recMsg[portPos+1:])
 print(resolvedIP)
+print(resolvedPort)
 print()
 ################################################################################
 
 ###### RESOLVE IP IN DINS
-print(constructGET("kek", hostname))
+print(constructGET(path, hostname))
+recMsg = None
+# creates socket connection
+clientSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+clientSoc.settimeout(5)
+try:
+  clientSoc.sendto(
+    bytes(constructGET(path, hostname), 'utf-8'), (resolvedIP, resolvedPort)
+  )
+  recMsg = clientSoc.recv(2048)
+except:
+  print("Connection timed out, exiting...")
+  exit(2)
+
+print()
+print(path)
+print(downloadAll)
 ################################################################################
