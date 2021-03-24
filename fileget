@@ -3,8 +3,6 @@
 ###### IMPORTS
 import socket
 import argparse
-from urllib.parse import urlparse
-import re
 import ipaddress
 ################################################################################
 
@@ -23,33 +21,48 @@ def constructGET(path, hostname):
   request += "Hostname: "+hostname+"\r\n"
   request += "Agent: "+CONST_LOGIN+"\r\n\r\n"
   return request
+
+def getHostname(request, serverIP, serverPort):
+  clientSoc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  clientSoc.settimeout(10)
+  clientSoc.sendto(bytes(request, 'utf-8'), (serverIP, serverPort))
+  try:
+    recMsg = clientSoc.recv(2048)
+    return recMsg
+  except:
+    print("Unable to connect to server, exiting...")
+    exit(2)
 ################################################################################
 
 
 ###### READ ARGUMENTS FROM STDIN
 argParser = argparse.ArgumentParser()
 argParser.add_argument(
-    "-n", required=True, nargs=1, help="IP address of server"
-  )
+  "-n", required=True, nargs=1, help="IP address of server"
+)
 argParser.add_argument(
-    "-f", required=True, nargs=1, help="Address to download from"
-  )
+  "-f", required=True, nargs=1, help="Address to download from"
+)
 args = vars(argParser.parse_args())
-#print("Arg1: "+str(args["n"][0]))
-#print("Arg2: "+str(args["f"][0]))
-#print("")
 ################################################################################
 
 
 ###### RESOLVE IP IN FIRST ARGUMENT
-fstIP = ""
-try:
-  fstIP = ipaddress.ip_address(str(args['n'][0]))
-except ValueError:
-  print("Invalid IP address given, exiting...")
+serverIP = ""
+serverPort = ""
+portPos = str(args['n'][0]).find(':')
+if portPos == -1 or len(args['n'][0][portPos:]) == 0:
+  print("Missing port for DNS server, exiting...")
   exit(1)
-#print(fstIP)
-#print("")
+
+try:
+  serverIP = ipaddress.ip_address(str(args['n'][0][0:portPos]))
+  serverPort = int(args['n'][0][portPos+1:])
+  if str(serverPort) != str(args['n'][0][portPos+1:]):
+    raise ValueError
+except ValueError:
+  print("Invalid IP address or port given, exiting...")
+  exit(1)
 ################################################################################
 
 
@@ -68,9 +81,18 @@ if (path == "" or firstSlashPos == -1):
 ################################################################################
 
 
-###### RESOLVE IP IN DNS
-print(constructWHEREIS(hostname))
-print("")
+###### RESOLVE HOSTNAME TO IP
+msgArr = bytes.decode(
+  getHostname(constructWHEREIS(hostname), str(serverIP), serverPort)
+)
+if msgArr[:2] != 'OK':
+  print("Error occured when trying to resolve IP from hostname.")
+  print(msgArr)
+  print("Exiting...")
+  exit(3)
+resolvedIP = msgArr.split()[1]
+print(resolvedIP)
+print()
 ################################################################################
 
 ###### RESOLVE IP IN DINS
