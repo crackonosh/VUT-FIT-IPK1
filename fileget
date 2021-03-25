@@ -185,6 +185,7 @@ try:
     tcpSoc.close()
   else:
     recMsg = getFile(tcpSoc, path, hostname, fileName)
+    tcpSoc.close()
 except Exception as e:
   print("Error when fetching data from server, exiting...")
   print(e)
