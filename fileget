@@ -4,11 +4,13 @@
 import socket
 import argparse
 import ipaddress
+import os
 ################################################################################
 
 
 ###### GLOBALS
 index = False
+allFiles = False
 ###### CONSTANTS
 CONST_LOGIN = 'xhaisl00'
 ################################################################################
@@ -25,31 +27,28 @@ def constructGET(path, hostname):
   return request
 
 def getFile(tcpSoc, path, hostname, fileName):
-  tcpSoc.connect((resolvedIP, resolvedPort))
-  tcpSoc.send(bytes(constructGET(path, hostname), 'utf-8'))
-  recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
-  # check that fetch was successful
-  if str(recMsg.split("\r\n")[0].split(" ")[1]).strip() != "Success":
-    print("Error occured when fetching file")
-    print(recMsg.split("\n")[0])
-    print("Exiting...")
-    exit(1)
+  try:
+    tcpSoc.connect((resolvedIP, resolvedPort))
+    tcpSoc.send(bytes(constructGET(path, hostname), 'utf-8'))
+    recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
+    # check that fetch was successful
+    if str(recMsg.split("\r\n")[0].split(" ")[1]).strip() != "Success":
+      print("Error occured when fetching file")
+      print(recMsg.split("\n")[0])
+      print("Exiting...")
+      exit(1)
 
-  print(recMsg.split("\r\n")[0])
-  print(recMsg.split("\r\n")[3:])
-
-  # write to file
-  file = open(fileName, "wb")
-  if index:
-    for fileName in recMsg.split("\r\n")[3:]:
-      if fileName != '':
-        file.write(bytes(fileName+"\n", 'utf-8'))
-  else:
+    # write to file
+    file = open(fileName, "wb")
     while recMsg := tcpSoc.recv(32):
       file.write(recMsg)
-  file.close()
+    file.close()
+  except Exception as e:
+    print("Error occured when downloading file")
+    print(e)
+    print("Exiting...")
+    exit(1)
   print("[FILE DOWNLOAD] "+fileName)
-  return
 ################################################################################
 
 
@@ -127,6 +126,7 @@ recMsg = bytes.decode(recMsg).split()[1]
 portPos = recMsg.find(':')
 resolvedIP = recMsg[0:portPos]
 resolvedPort = int(recMsg[portPos+1:])
+udpSoc.close()
 ################################################################################
 
 
@@ -135,18 +135,58 @@ recMsg = None
 # creates socket connection
 tcpSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
-  # if index all files already part of header
-
   # resolve file name
   fileName = None
   if "/" in path:
     fileName = path.split("/")[-1].strip()
   else:
     fileName = path
-    index = True
+    if path == "index":
+      index = True
+    if path[-1].strip() == '*':
+      index = True
+      allFiles = True
 
-  print("test")
-  recMsg = getFile(tcpSoc, path, hostname, fileName)
+  # check if we should download index or one file
+  if index:
+    tcpSoc.connect((resolvedIP, resolvedPort))
+    tcpSoc.send(bytes(constructGET("index", hostname), 'utf-8'))
+    recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
+    if str(recMsg.split("\r\n")[0].split(" ")[1]).strip() != "Success":
+      print("Error occured when fetching file")
+      print(recMsg.split("\n")[0])
+      print("Exiting...")
+      exit(1)
+
+    # check if we should download all files (*)
+    if allFiles:
+      print(recMsg.split("\r\n")[3:])
+      for serverFile in recMsg.split("\r\n")[3:]:
+        hold = serverFile.split("/")
+        if len(hold) > 1:
+          pwd = os.getcwd()
+          for directory in hold[:-1]:
+            if not(directory in os.listdir()):
+              os.mkdir("./"+directory)
+            os.chdir("./"+directory)
+            print("[DIR CREATED] "+directory)
+          os.chdir(pwd)
+
+        if serverFile != '':
+          tmpSoc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          recMsg = getFile(tmpSoc, serverFile, hostname, serverFile)
+          tmpSoc.close()
+      print("[DOWNLOAD ALL]")
+    else:
+      file = open("index", "wb")
+      for serverFile in recMsg.split("\r\n")[3:]:
+        if serverFile != '':
+          file.write(bytes(serverFile+"\n", 'utf-8'))
+      file.close()
+      print("[DOWNLOAD INDEX]")
+    tcpSoc.close()
+  else:
+    recMsg = getFile(tcpSoc, path, hostname, fileName)
 except Exception as e:
   print("Error when fetching data from server, exiting...")
   print(e)
