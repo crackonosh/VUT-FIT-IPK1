@@ -157,20 +157,19 @@ try:
       print("Exiting...")
       exit(1)
     
+    if len(recMsg.split("\r\n")[3:]) == 1:
+      tmp = recMsg.split("\r\n")[1].split(":")[1]
+      tmp = int(tmp)
+      if (tmp == 0):
+        print("No files found on server, exiting...")
+        exit(1)
+      recMsg = bytes.decode(tcpSoc.recv(4096), 'utf-8')
+      recMsg = "FSP\r\nLength\r\n\r\n" + recMsg
     # check if we should download all files (*)
     if allFiles:
-      if len(recMsg.split("\r\n")[3:]) == 1:
-        tmp = recMsg.split("\r\n")[1].split(":")[1]
-        tmp = int(tmp)
-        print(tmp)
-        if (tmp == 0):
-          print("No files found on server, exiting...")
-          exit(1)
-        recMsg = bytes.decode(tcpSoc.recv(4096), 'utf-8')
-        if len(recMsg) == 0:
-          print("Unable to fetch all files from server, try again, exiting...")
-          exit(1)
-        recMsg = "FSP\r\nLength\r\n\r\n" + recMsg
+      if len(recMsg) == 0:
+        print("Unable to fetch all files from server, try again, exiting...")
+        exit(1)
       for serverFile in recMsg.split("\r\n")[3:]:
         hold = serverFile.split("/")
         if len(hold) > 1:
