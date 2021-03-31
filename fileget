@@ -92,11 +92,11 @@ hostname = args['f'][0][6:firstSlashPos+6]
 path = args['f'][0][7+firstSlashPos:]
 
 downloadAll = False
-if path[-1] == '*':
-  downloadAll = True
 if (path == "" or firstSlashPos == -1):
   print("Invalid path to file, exiting...")
   exit(1)
+if path[-1] == '*':
+  downloadAll = True
 ################################################################################
 
 
@@ -150,18 +150,27 @@ try:
   if index:
     tcpSoc.connect((resolvedIP, resolvedPort))
     tcpSoc.send(bytes(constructGET("index", hostname), 'utf-8'))
-    recMsg = bytes.decode(tcpSoc.recv(2048), 'utf-8')
+    recMsg = bytes.decode(tcpSoc.recv(4096), 'utf-8')
     if str(recMsg.split("\r\n")[0].split(" ")[1]).strip() != "Success":
       print("Error occured when fetching file")
       print(recMsg.split("\n")[0])
       print("Exiting...")
       exit(1)
-
+    
     # check if we should download all files (*)
     if allFiles:
       if len(recMsg.split("\r\n")[3:]) == 1:
-        print("No files found on server, exiting...")
-        exit(1)
+        tmp = recMsg.split("\r\n")[1].split(":")[1]
+        tmp = int(tmp)
+        print(tmp)
+        if (tmp == 0):
+          print("No files found on server, exiting...")
+          exit(1)
+        recMsg = bytes.decode(tcpSoc.recv(4096), 'utf-8')
+        if len(recMsg) == 0:
+          print("Unable to fetch all files from server, try again, exiting...")
+          exit(1)
+        recMsg = "FSP\r\nLength\r\n\r\n" + recMsg
       for serverFile in recMsg.split("\r\n")[3:]:
         hold = serverFile.split("/")
         if len(hold) > 1:
